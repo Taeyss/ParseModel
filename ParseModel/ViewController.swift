@@ -26,7 +26,7 @@ class ViewController: UIViewController {
                    "computer": ["company": "company1", "name": "name1", "price": 111.0],
                    "computerArray": [["company": "company1", "name": "name1", "price": 111.0],["company": "company2", "name": "name2", "price": 222.0]]]
         let model : SwiftModel = ParseModel.parseDictionary(dic, className: "SwiftModel") as! SwiftModel
-        print("\(model.name,model.sex,model.address,model.computer!.company!,model.info.first,model.computerArray_Class_Computer?.last?.company)")
+        print("\(model.name,model.sex,model.address,model.computer?.company,model.info.first,model.computerArray_Class_Computer?.last?.company)")
         
         let xdic = ParseModel.parseModel(model)
         ///比较转换前和转换后的打印数据比较

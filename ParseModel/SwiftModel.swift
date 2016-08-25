@@ -12,7 +12,7 @@ class SwiftModel : NSObject, ParseModelProtocol {
     //
     var name = "name"
     var sex = "sex"
-    var address = "address"
+    var address : String?
     var area = [123]
     var age : UInt32 = 122
     var aaa : UInt8 = 1
@@ -40,5 +40,10 @@ class Computer: NSObject, ParseModelProtocol {
     
     var company : String?
     var name : String?
+    
+}
+
+class TestM: SwiftModel {
+    var xxx = "123"
     
 }

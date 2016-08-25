@@ -28,36 +28,33 @@ class ParseModel {
         let retObejct = cls.init()
         
         ///获取属性集合
-        var propertyNum : UInt32 = 0
-        let properties = class_copyPropertyList(anyCl, &propertyNum)
-        for index in 0..<Int(propertyNum) {
+        let mir : Mirror = Mirror(reflecting: retObejct)
+        let properties = self.obejctInfoWithMirror(mir)
+
+        for index in 0..<properties.count {
             let property = properties[index]
-            let propertyName = String(UTF8String: property_getName(property))
-            let propertyAttr = String(UTF8String: property_getAttributes(property))
-            print("propertyName: \(propertyName) \n propertyAttr: \(propertyAttr)")
-            let realPropertyName = propertyName?.componentsSeparatedByString("_Class_").first
+            let propertyName = property.propertyName
+            let realPropertyName = propertyName.componentsSeparatedByString("_Class_").first
             guard var propertyValue = dictionary[realPropertyName!] else {
                 continue
             }
-            let propertyValueType = self.getRetType(propertyAttr!)
+            let type = property.propertyType
+            let propertyValueType = self.getRetType(type)
+            
             ///区分value的类型
             switch propertyValueType {
-            case .ModelDataTypeString:
-                print("ModelDataTypeString")
             case .ModelDataTypeObject:
-                var tempClassName = propertyAttr!.componentsSeparatedByString("8").last
-                tempClassName = tempClassName?.componentsSeparatedByString("\"").first
-                propertyValue = self.parseDictionary(propertyValue as! [String : AnyObject], className: tempClassName!) as! AnyObject
+                propertyValue = self.parseDictionary(propertyValue as! [String : AnyObject], className: type) as! AnyObject
             case .ModelDataTypeArray:
                 ///处理_Class_
-                let propertyNameAry = propertyName?.componentsSeparatedByString("_Class_")
-                let tempSubClassName = propertyNameAry!.last
+                let propertyNameAry = propertyName.componentsSeparatedByString("_Class_")
+                let tempSubClassName = propertyNameAry.last
                 var tempArray = Array<AnyObject>()
                 var tempValue : [AnyObject] = propertyValue as! Array<AnyObject>
                 for index in 0..<tempValue.count {
                     //
                     var value = tempValue[index]
-                    if propertyNameAry?.count  > 1 {
+                    if propertyNameAry.count  > 1 {
                         value = self.parseDictionary(value as! [String : AnyObject], className: tempSubClassName!) as! AnyObject
                     }
                     tempArray.append(value)
@@ -66,13 +63,9 @@ class ParseModel {
             default:
                 print("")
             }
-            retObejct.setValue(propertyValue, forKey: propertyName!)
+            retObejct.setValue(propertyValue, forKey: propertyName)
         }
-        
-        free(properties)
-
         return retObejct
-        
     }
     
     /*
@@ -82,79 +75,107 @@ class ParseModel {
         
         var tempDic = [String: AnyObject]()
         
-        let anyCl : AnyObject.Type = model.dynamicType
-        
         ///获取属性集合
-        var propertyNum : UInt32 = 0
-        let properties = class_copyPropertyList(anyCl, &propertyNum)
-        for index in 0..<Int(propertyNum) {
+        let mir : Mirror = Mirror(reflecting: model)
+        let properties = self.obejctInfoWithMirror(mir)
+        
+        for index in 0..<properties.count {
             //
             let property = properties[index]
-            let propertyName = String(UTF8String: property_getName(property))
-            let propertyAttr = String(UTF8String: property_getAttributes(property))
-            print("propertyName: \(propertyName) \n propertyAttr: \(propertyAttr)")
+            let propertyName = property.propertyName
             
-            let realPropertyName : String? = propertyName?.componentsSeparatedByString("_Class_").first
-            guard var propertyValue = model.valueForKey(propertyName!) else {
+            let realPropertyName : String? = propertyName.componentsSeparatedByString("_Class_").first
+            guard var propertyValue = model.valueForKey(propertyName) else {
                 continue
             }
-            let propertyValueType = self.getRetType(propertyAttr!)
+            let type = property.propertyType
+            let propertyValueType = self.getRetType(type)
             ///区分value的类型
             switch propertyValueType {
-            case .ModelDataTypeString:
-                print("ModelDataTypeString")
             case .ModelDataTypeObject:
-                var tempClassName = propertyAttr!.componentsSeparatedByString("8").last
-                tempClassName = tempClassName?.componentsSeparatedByString("\"").first
                 let dic = self.parseModel(propertyValue)
                 propertyValue = dic
             case .ModelDataTypeArray:
                 ///处理_Class_
-                let propertyNameAry = propertyName?.componentsSeparatedByString("_Class_")
+                let propertyNameAry = propertyName.componentsSeparatedByString("_Class_")
                     var tempArray = Array<AnyObject>()
                     var tempValue : [AnyObject] = propertyValue as! Array<AnyObject>
                     for index in 0..<tempValue.count {
                         //
                         var value = tempValue[index]
-                        if propertyNameAry?.count  > 1 {
+                        if propertyNameAry.count  > 1 {
                             value = self.parseModel(value)
                         }
                         tempArray.append(value)
                     }
                     propertyValue = tempArray
             default:
-                print("default")
+                print("")
             }
             tempDic[realPropertyName!] = propertyValue
         }
-        free(properties)
 
         return tempDic
 }
-    class func getRetType(dataTypeStr: String) -> ModelDataType {
+    /*
+     *获取实体的属性值和类型
+     *使用递归遍历父类的属性值和类型
+     */
+    class func obejctInfoWithMirror(mirror: Mirror) -> [(propertyName: String, propertyType: String)] {
+        
+        var objectInfoArray = Array<(propertyName: String, propertyType: String)>()
+        if let superMirro = mirror.superclassMirror() {
+            let tempArray = self.obejctInfoWithMirror(superMirro)
+            objectInfoArray += tempArray
+        }
+        for case let (label?, value) in mirror.children {
+            var tempValueType = String(Mirror(reflecting: value).subjectType)
+            let optionTagStr = "Optional<"
+            if tempValueType.hasPrefix(optionTagStr) {
+                let startIndex = tempValueType.rangeOfString(optionTagStr)?.endIndex
+                let endIndex = tempValueType.endIndex.advancedBy(-1)
+                let range = startIndex!..<endIndex
+                tempValueType = tempValueType.substringWithRange(range)
+            }
+            let temp : (propertyName: String, propertyType: String) = (label, tempValueType)
+            objectInfoArray.append(temp)
+        }
+        return objectInfoArray
+    }
+    
+    /*
+     *解析value的类型
+     */
+    class func getRetType(dataType: String) -> ModelDataType {
         //
-        var retType = ModelDataType.ModelDataTypeInt
-        if dataTypeStr.hasPrefix("T@") {
-            retType = .ModelDataTypeObject
+        if dataType == "String" {
+            return .ModelDataTypeString
         }
-        if (dataTypeStr.rangeOfString("NSString") != nil) {
-            //
-            retType = .ModelDataTypeString
+        if dataType.hasPrefix("Dictionary") {
+            return .ModelDataTypeDictionary
         }
-        if (dataTypeStr.rangeOfString("NSArray") != nil) {
-            //
-            retType = .ModelDataTypeArray
+        if dataType.hasPrefix("Array") {
+            return .ModelDataTypeArray
         }
-        if (dataTypeStr.rangeOfString("NSDictionary") != nil) {
-            //
-            retType = .ModelDataTypeDictionary
+        if dataType.hasPrefix("Bool") {
+            return .ModelDataTypeBool
         }
-        return retType
+        if dataType.hasPrefix("Double") {
+            return .ModelDataTypeDouble
+        }
+        if (dataType.rangeOfString("Int") != nil) {
+            return .ModelDataTypeInt
+        }
+        if dataType.hasPrefix("Float") {
+            return .ModelDataTypeFloat
+        }
+        //TODO: 增加其他基本类型判断
+        return .ModelDataTypeObject
     }
 }
 
 enum ModelDataType {
-    case ModelDataTypeObject, ModelDataTypeString, ModelDataTypeArray, ModelDataTypeDictionary, ModelDataTypeDouble, ModelDataTypeInt, ModelDataTypeFloat, ModelDataTypeBool
+    case ModelDataTypeString, ModelDataTypeDictionary, ModelDataTypeObject, ModelDataTypeArray, ModelDataTypeBool, ModelDataTypeInt, ModelDataTypeDouble, ModelDataTypeFloat
 }
 
 protocol ParseModelProtocol {
