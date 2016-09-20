@@ -37,7 +37,7 @@ class Computer: NSObject, ParseModelProtocol {
     required override init() {
         super.init()
     }
-    
+
     var company : String?
     var name : String?
     

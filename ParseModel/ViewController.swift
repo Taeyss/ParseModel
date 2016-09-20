@@ -24,11 +24,11 @@ class ViewController: UIViewController {
                    "ok": -111,
                    "car": "ccc",
                    "computer": ["company": "company1", "name": "name1", "price": 111.0],
-                   "computerArray": [["company": "company1", "name": "name1", "price": 111.0],["company": "company2", "name": "name2", "price": 222.0]]]
-        let model : SwiftModel = ParseModel.parseDictionary(dic, className: "SwiftModel") as! SwiftModel
+                   "computerArray": [["company": "company1", "name": "name1", "price": 111.0],["company": "company2", "name": "name2", "price": 222.0]]] as [String : Any]
+        let model : SwiftModel = ParseModel.parseDictionary(dictionary: dic as [String : AnyObject], className: "SwiftModel") as! SwiftModel
         print("\(model.name,model.sex,model.address,model.computer?.company,model.info.first,model.computerArray_Class_Computer?.last?.company)")
         
-        let xdic = ParseModel.parseModel(model)
+        let xdic = ParseModel.parseModel(model: model)
         ///比较转换前和转换后的打印数据比较
         print("\(xdic)")
         print("\(dic)")
